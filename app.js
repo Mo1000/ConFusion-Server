@@ -35,49 +35,60 @@ app.set('view engine', 'jade');
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
+app.use(cookieParser('12345-67890-09876-54321'));/**Code secret pour reconnaitre
+ les cookies*/
 
 /** donner l'acces a l'application node
  * node lit middleware par middleware si ce middleware n'est pas valide
  il pourra pas passer au suivant donc il faut bien respecter l'autre des middleware  */
-function  auth(req, res, next){
-    console.log(req.headers);
 
-    var  authHeader =req.headers.authorization;
-    /**authHeader contient la req du client soit le nom d'utilisateur et le mdp
-     codé en base 64 */
-    if (!authHeader){
-        var err = new  Error( 'You are not authenticated!');
-
-        /**signifier en reponse que c'est une Authentication*/
-        res.setHeader('WWW-Authenticate','Basic');
-        err.status = 401; /**Non autorisé*/
-        next(err);
-        return
-    }
-    var auth = new  Buffer.from(authHeader.split(' ')[1],'base64').toString().split(':');
-    /**Buffer un tampon qui divise la valeur en suivant l'encodage qu'on donne
-     * split pour diviser et l'espace dans le split comme parti de separation
-     *le premier element de cette separation est l'element codé en base 64
-     * l'autre ou l'element existe
-     * toString() contiendra le nom d'utilsateur et le mdp  separer par : au cause de split(':')
-     * auth est un tableau dont le premier element est le non d'utilsateur
-     * et le second le password */
-
-    var username = auth[0];
-    var password = auth[1];
-
-    if (username === 'admin' && password ==='password'){
-        next() /**Cela signifie que c'est bon donc il peut passer a un autre middleware*/
+function auth (req, res, next) {
+console.log(req.signedCookies.user);
+    /**Utilisation des cookies signées */
+    if (!req.signedCookies.user){
+        var authHeader = req.headers.authorization;
+        if (!authHeader) {
+            var err = new Error('You are not authenticated!');
+            /**authHeader contient la req du client soit le nom d'utilisateur et le mdp
+             codé en base 64 */
+            /**envoyer en reponse que c'est une Authentication*/
+            res.setHeader('WWW-Authenticate', 'Basic');
+            err.status = 401;
+            next(err);
+            return;
+        }
+        var auth = new Buffer.from(authHeader.split(' ')[1], 'base64').toString().split(':');
+        /**Buffer un tampon qui divise la valeur en suivant l'encodage qu'on donne
+         * split pour diviser et l'espace dans le split comme parti de separation
+         *le premier element de cette separation est l'element codé en base 64
+         * l'autre ou l'element existe
+         * toString() contiendra le nom d'utilsateur et le mdp  separer par : au cause de split(':')
+         * auth est un tableau dont le premier element est le non d'utilsateur
+         * et le second le password */
+        var user = auth[0];
+        var pass = auth[1];
+        if (user == 'admin' && pass == 'password') {
+            res.cookie('user','admin',{signed: true});
+            /**Cela signifie que c'est bon donc il peut passer a un autre middleware*/
+            next(); // authorized
+        } else {
+            var err = new Error('You are not authenticated!');
+            res.setHeader('WWW-Authenticate', 'Basic');
+            err.status = 401;
+            next(err);
+        }
     }
     else {
-        var err = new  Error( 'You are not authenticated!');
-
-        res.setHeader('WWW-Authenticate','Basic');
-        err.status = 401; /**Non autorisé*/
-        next(err);
+        if (req.signedCookies.user === 'admin') {
+            res.cookie('user','admin',{signed: true});
+            next();
+        }
+        else {
+            var err = new Error('You are not authenticated!');
+            err.status = 401;
+            next(err);
+        }
     }
-
 }
 app.use(auth);
 app.use(express.static(path.join(__dirname, 'public')));

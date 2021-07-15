@@ -1,7 +1,8 @@
 const  express = require('express');
 const bodyParser = require('body-parser');
 
-const leaderRouter=express.Router();
+const leaderRouter=express.Router()
+const Leaders = require('../models/leader');
 
 leaderRouter.use(bodyParser.json());
 leaderRouter.route('/')
@@ -10,34 +11,58 @@ leaderRouter.route('/')
      le chemin sera le meme que pour les autres et avec le next on transmet les memes
      parametre au autres aussi
      API REST(Representational State Transfert)*/
-    .all((req,res,next) =>{
+   /* .all((req,res,next) =>{
         res.statusCode =200;
         res.setHeader('Content-Type','text/plain');
         next();
-    })
+    })*/
 
     .get((req,res,next) =>{
-        res.end('will send all the leaders to you');
+        Leaders.find({})
+            .then((leaders) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(leaders);
+            }, (err) => next(err))
+            .catch((err) => next(err));
     })
 
     .post((req,res,next) =>{
-        res.end('Will add the leader :'+ req.body.name + ' with details: ' +
-            req.body.description);
+        Leaders.create(req.body)
+            .then((leader) => {
+                console.log('Leader Created ', leader);
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(leader);
+            }, (err) => next(err))
+            .catch((err) => next(err));
     })
 
     .put((req,res,next) =>{
         res.statusCode =403;
-        res.end('Put operation no supported');
+        res.end('Put operation no supported on / leaders');
     })
 
     .delete((req,res,next) =>{
-        res.end('Delete all the leaders ');
+        Leaders.remove({})
+            .then((resp) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(resp);
+            }, (err) => next(err))
+            .catch((err) => next(err));
     });
 
 leaderRouter.route('/:leaderId')
     /**Concernant un leader specifique*/
     .get((req,res,next) =>{
-        res.end('will send details of the leader: ' + req.params.leaderId + ' to you');
+        Leaders.findById(req.params.leaderId)
+            .then((leader) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(leader);
+            }, (err) => next(err))
+            .catch((err) => next(err));
     })
 
     .post((req,res,next) =>{
@@ -47,13 +72,27 @@ leaderRouter.route('/:leaderId')
     })
 
     .put((req,res,next) =>{
-        res.write('Updating the leader: ' +req.params.leaderId);
-        res.end('\n  Will update the leader ' + req.body.name +' with details '
-            +req.body.description);
+        /**{ new: true } pour que la methode findByIdAndUpdate retourne le leader sous
+         forme de reponse json*/
+        Leaders.findByIdAndUpdate(req.params.leaderId, {
+            $set: req.body
+        }, { new: true })
+            .then((leader) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(leader);
+            }, (err) => next(err))
+            .catch((err) => next(err));
     })
 
     .delete((req,res,next) =>{
-        res.end('Deleting leader: '+req.params.leaderId);
+        Leaders.findByIdAndRemove(req.params.leaderId)
+            .then((resp) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(resp);
+            }, (err) => next(err))
+            .catch((err) => next(err));
     });
 
 

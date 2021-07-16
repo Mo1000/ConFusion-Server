@@ -9,7 +9,8 @@ var usersRouter = require('./routes/users');
 var dishRouter=require('./routes/dishRouter');
 var promoRouter=require('./routes/promotionRouter');
 var leaderRouter=require('./routes/leaderRouter');
-
+var session = require('express-session');
+var FileStore = require('session-file-store')(session);
 const mongoose = require('mongoose');
 
 
@@ -35,17 +36,29 @@ app.set('view engine', 'jade');
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser('12345-67890-09876-54321'));/**Code secret pour reconnaitre
- les cookies*/
+/**app.use(cookieParser('12345-67890-09876-54321'));
+/**Code secret pour reconnaitre les cookies*/
 
+/**La session prends des données  plus volumineux que les cookies et elle prends en compte
+ les cookies*/
+app.use(session({
+    name: 'session-id',
+    secret: '12345-67890-09876-54321',
+    saveUninitialized: false,
+    resave: false,
+    store: new FileStore()
+    /**mettre  la session de chaque utilsateur dans un magasin
+     de fichier */
+}));
 /** donner l'acces a l'application node
  * node lit middleware par middleware si ce middleware n'est pas valide
  il pourra pas passer au suivant donc il faut bien respecter l'autre des middleware  */
 
 function auth (req, res, next) {
-console.log(req.signedCookies.user);
+//console.log(req.signedCookies.user);
+    console.log(req.session);
     /**Utilisation des cookies signées */
-    if (!req.signedCookies.user){
+    if (!req.session.user){
         var authHeader = req.headers.authorization;
         if (!authHeader) {
             var err = new Error('You are not authenticated!');
@@ -68,7 +81,8 @@ console.log(req.signedCookies.user);
         var user = auth[0];
         var pass = auth[1];
         if (user == 'admin' && pass == 'password') {
-            res.cookie('user','admin',{signed: true});
+            //res.cookie('user','admin',{signed: true});
+            req.session.user = "admin";
             /**Cela signifie que c'est bon donc il peut passer a un autre middleware*/
             next(); // authorized
         } else {
@@ -79,8 +93,9 @@ console.log(req.signedCookies.user);
         }
     }
     else {
-        if (req.signedCookies.user === 'admin') {
-            res.cookie('user','admin',{signed: true});
+        if (req.session.user === 'admin') {
+           // res.cookie('user','admin',{signed: true});
+            console.log('req.session: ',req.session);
             next();
         }
         else {
